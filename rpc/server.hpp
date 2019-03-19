@@ -7,6 +7,7 @@
 #include <thread>
 #include <map>
 
+#include <thread/threadpool.hpp>
 #include "nn.hpp"
 
 namespace utils {
@@ -19,6 +20,7 @@ namespace utils {
             server () : running_ (false)
                       , sub_sock_ (AF_SP, NN_SUB)
                       , pub_sock_ (AF_SP, NN_PUB)
+                      , pool (4)
             {
                 pub_sock_.connect (IPC_SUBSCRIBE_SOCKET_PATH);
             }
@@ -62,12 +64,12 @@ namespace utils {
                     std::cout << "收到消息 : size(" << size << ") len("
                               << strlen(buf) << ") data(" << buf << ")\n";
                     // 执行任务
-                    worker(buf);
+                    pool.commit(std::bind(&server::worker, this, buf));
                 
                     nn::freemsg(buf);
                 }
             }
-            // TODO: 需要一个线程池
+            // DONE: 需要一个线程池 线程池已经加入
             void worker (std::string str)
             {
                 std::size_t pos = str.find(":");
@@ -100,12 +102,14 @@ namespace utils {
         private:
         
             bool running_;
-        
+            
             nn::socket sub_sock_;
             nn::socket pub_sock_;
 
             std::thread receiver_thread_;
             std::map<std::string, std::function<std::string(std::string)>> methods_;
+
+            utils::thread::threadpool pool; // 定义线程池
         };
 
     }  // rpc
