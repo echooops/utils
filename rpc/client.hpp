@@ -13,15 +13,12 @@ namespace utils {
         class client            // client
         {
         public:
-            client () : pub_sock_(AF_SP, NN_PUB)
-            {
+            client () : pub_sock_(AF_SP, NN_PUB) {
                 pub_sock_.connect(IPC_SUBSCRIBE_SOCKET_PATH);
             }
-            virtual ~client () {
-            }
+            virtual ~client () { }
             // 一问一答，同步请求
-            std::string request (std::string &&method, std::string &&data, int timeout = 3000)
-            {
+            std::string request (std::string &&method, std::string &&data, int timeout = 3000) {
                 std::string subject = "/rep/" + method + "/";
                 nn::socket sub_sock (AF_SP, NN_SUB);
                 sub_sock.setsockopt (NN_SUB, NN_SUB_SUBSCRIBE, subject.c_str(), subject.length());
@@ -47,8 +44,7 @@ namespace utils {
                 }
             }
             // 一问多答，收集结果
-            std::vector<std::string> survey (std::string &&method, std::string &&data, int timeout = 500)
-            {
+            std::vector<std::string> survey (std::string &&method, std::string &&data, int timeout = 500) {
                 std::string subject = "/rep/" + method + "/";
                 nn::socket sub_sock (AF_SP, NN_SUB);
                 sub_sock.setsockopt (NN_SUB, NN_SUB_SUBSCRIBE, subject.c_str(), subject.length());
@@ -77,14 +73,13 @@ namespace utils {
             }
             // 异步请求，返回一个future 信息，进程间速度很快，暂时不做
             // 单发
-            void singleshot (std::string &&method, std::string &&data)
-            {
+            void singleshot (std::string &&method, std::string &&data) {
                 // 发送远程调用
                 std::string sndbuf = "/req/" + method + ":" + data;
                 std::cout << "发送消息 : " << sndbuf << "\n";
                 pub_sock_.send (sndbuf.c_str(), sndbuf.size() + 1, 0);
             }
-        
+
         private:
             nn::socket pub_sock_;
         };

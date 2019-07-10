@@ -13,7 +13,7 @@
 namespace utils {
     // 线程相关工具
     namespace thread {
-        
+
 #define THREADPOOL_MAX_NUM 16   //线程池最大容量，应尽量设小一点
 #define THREADPOOL_MIN_NUM 4    //线程池最小容量，应尽量设小一点
 
@@ -33,8 +33,7 @@ namespace utils {
 
         public:
             inline threadpool(unsigned short size = 4) { addThread(size); }
-            inline ~threadpool()
-            {
+            inline ~threadpool() {
                 _run = false;
                 _task_cv.notify_all(); // 唤醒所有线程执行
                 for (auto& thread : _pool) {
@@ -51,8 +50,7 @@ namespace utils {
             // 一种是使用   bind： .commit(std::bind(&Dog::sayHello, &dog));
             // 一种是用   mem_fn： .commit(std::mem_fn(&Dog::sayHello), this)
             template<class F, class... Args>
-            auto commit(F&& f, Args&&... args) ->std::future<decltype(f(args...))>
-            {
+            auto commit(F&& f, Args&&... args) ->std::future<decltype(f(args...))> {
                 if (!_run)    // stoped ??
                     throw std::runtime_error("commit on ThreadPool is stopped.");
 
@@ -64,7 +62,7 @@ namespace utils {
                 // 添加任务到队列
                 {
                     // 对当前块的语句加锁  lock_guard 是 mutex 的 stack 封装类，构造的时候 lock()，析构的时候 unlock()
-                    std::lock_guard<std::mutex> lock{ _lock }; 
+                    std::lock_guard<std::mutex> lock{ _lock };
                     _tasks.emplace([task]() { // push(task_t{...}) 放到队列后面
                                        (*task)();
                                    });
@@ -84,19 +82,16 @@ namespace utils {
             int thrCount() { return _pool.size(); }
             // 队列中任务数量
             int taskCount() { return _tasks.size(); }
-        
+
 #ifndef THREADPOOL_AUTO_GROW
         private:
 #endif // !THREADPOOL_AUTO_GROW
             // 添加指定数量的线程
-            void addThread(unsigned short size)
-            {
+            void addThread(unsigned short size) {
                 // 增加线程数量,但不超过 预定义数量 THREADPOOL_MAX_NUM
-                for (; _pool.size() < THREADPOOL_MAX_NUM && size > 0; --size)
-                {   
+                for (; _pool.size() < THREADPOOL_MAX_NUM && size > 0; --size) {
                     _pool.emplace_back( [this]{ // 工作线程函数
-                                            while (_run)
-                                            {
+                                            while (_run) {
                                                 task_t task; // 获取一个待执行的 task
                                                 {
                                                     // unique_lock 相比 lock_guard 的好处是：可以随时 unlock() 和 lock()

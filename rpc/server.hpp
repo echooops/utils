@@ -11,7 +11,7 @@
 #include "nn.hpp"
 
 namespace utils {
-    
+
     namespace rpc {
 
         class server             // 处理订阅的任务
@@ -20,14 +20,12 @@ namespace utils {
             server () : running_ (false)
                       , sub_sock_ (AF_SP, NN_SUB)
                       , pub_sock_ (AF_SP, NN_PUB)
-                      , pool (4)
-            {
+                      , pool (4) {
                 pub_sock_.connect (IPC_SUBSCRIBE_SOCKET_PATH);
             }
             virtual ~server() { }
-
-            void start ()           // 开始接受订阅消息
-            {
+            // 开始接受订阅消息
+            void start () {
                 try {
                     running_ = true;
                     // 遍历订阅所有任务
@@ -41,21 +39,19 @@ namespace utils {
                     sub_sock_.connect (IPC_BROADCAST_SOCKET_PATH);
                     // 启动消息接收器
                     receiver_thread_ = std::thread (&server::receiver, this);
-                
+
                 } catch (std::exception &e) {
                     std::cerr << "[nanomsg]" << e.what() << "\n";
                 }
             }
-        
-            void stop ()
-            {
+
+            void stop () {
                 running_ = false;
                 // 关闭sock
                 receiver_thread_.join();
             }
-        
-            void receiver ()
-            {
+
+            void receiver () {
                 while (running_) {
                     char * buf = nullptr;
                     std::cout << "开始接收消息" << "\n";
@@ -65,18 +61,17 @@ namespace utils {
                               << strlen(buf) << ") data(" << buf << ")\n";
                     // 执行任务
                     pool.commit(std::bind(&server::worker, this, buf));
-                
+
                     nn::freemsg(buf);
                 }
             }
             // DONE: 需要一个线程池 线程池已经加入
-            void worker (std::string str)
-            {
+            void worker (std::string str) {
                 std::size_t pos = str.find(":");
                 std::string head = str.substr(0, pos);
                 std::string method = head.substr(5, head.rfind("/") - 5);
                 std::string data = str.substr(pos + 1);
-            
+
                 std::cout << "head : " << head << "\n";
                 std::cout << "method : " << method << "\n";
                 std::cout << "data : " << data << "\n";
@@ -86,13 +81,12 @@ namespace utils {
                 head.replace(0, 5, "/rep/");
                 std::string sndbuf = head + ":" + ret;
                 std::cout << "回复消息:" << sndbuf << "\n";
-            
+
                 pub_sock_.send(sndbuf.c_str(), sndbuf.size() + 1, 0);
             }
 
-        
-            void register_methods (std::string topic, std::function<std::string(const std::string &)> func)
-            {
+
+            void register_methods (std::string topic, std::function<std::string(const std::string &)> func) {
                 if (!running_)
                     methods_[topic] = std::move(func);
                 else
@@ -100,9 +94,9 @@ namespace utils {
             }
 
         private:
-        
+
             bool running_;
-            
+
             nn::socket sub_sock_;
             nn::socket pub_sock_;
 

@@ -6,7 +6,7 @@
 #include "nn.hpp"
 
 namespace utils {
-    
+
     namespace rpc {
 
         class bus
@@ -15,24 +15,21 @@ namespace utils {
             bus () : running (true)
                    , broadcast_sock_ (AF_SP_RAW, NN_PUB)
                    , subscribe_sock_ (AF_SP_RAW, NN_SUB)
-                   , broadcaster_thread_ (&bus::broadcaster, this)
-            { }
+                   , broadcaster_thread_ (&bus::broadcaster, this) { }
 
-            virtual ~bus() noexcept
-            {
+            virtual ~bus() noexcept {
                 running = false;
                 // 关闭通道
                 broadcaster_thread_.join();
             }
-        
+
         private:
             // 广播员，收到消息就广播
-            void broadcaster ()
-            {
+            void broadcaster () {
                 try {
                     // 转发所有消息
                     subscribe_sock_.setsockopt(NN_SUB, NN_SUB_SUBSCRIBE, "", 0);
-                
+
                     broadcast_sock_.bind (IPC_BROADCAST_SOCKET_PATH);
                     subscribe_sock_.bind (IPC_SUBSCRIBE_SOCKET_PATH);
                     // 阻塞，转发广播

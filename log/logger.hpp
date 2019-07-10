@@ -3,37 +3,51 @@
 #define SPDLOG_FUNCTION __PRETTY_FUNCTION__
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <cstdarg>
 #include <unistd.h>
 #include <sys/stat.h>
 
 namespace utils {
-    
+
     namespace log {
 
         class logger
         {
         public:
-            logger(const char *filename, size_t max_file_size, size_t max_files)
-            {
+            logger(const char *filename, size_t max_file_size, size_t max_files) {
                 mkdirs (filename); // 检查并创建不存在目录
-                auto my_logger = spdlog::rotating_logger_mt("rotaing_logger", filename, max_file_size, max_files);
-                spdlog::set_default_logger(my_logger);
+                auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt >();
                 // 设置打印级别
-                my_logger->set_level(spdlog::level::debug);
+#ifdef DEBUG
+                stdout_sink->set_level(spdlog::level::debug);
+#else
+                // 当发出 warn 或更严重的错误时立刻刷新到日志
+                stdout_sink->set_level(spdlog::level::warn);
+#endif
+
+                auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(filename, max_file_size, max_files);
+                // 设置打印级别
+                rotating_sink->set_level(spdlog::level::debug);
+                std::vector<spdlog::sink_ptr> sinks {stdout_sink, rotating_sink};
+                auto my_logger = std::make_shared<spdlog::logger>("loggername", sinks.begin(), sinks.end());
+#ifdef DEBUG
+                my_logger->flush_on(spdlog::level::debug);
+#else
                 // 当发出 warn 或更严重的错误时立刻刷新到日志
                 my_logger->flush_on(spdlog::level::warn);
-                spdlog::set_pattern("[%H:%M:%S] [thread %t] [%^---%L---%$] [%s:%!:%#] %v");
+#endif
+                spdlog::register_logger(my_logger);
+                spdlog::set_default_logger(my_logger);
+                spdlog::set_pattern("[%H:%M:%S] [%^---%L---%$] [%v]\n[%C-%m-%d] [thread %t] [%s:%!:%#]");
             }
-            virtual ~logger()
-            {
+            virtual ~logger() {
                 spdlog::drop_all();
             }
 
         private:
-            inline void mkdirs(const char *muldir)
-            {
+            inline void mkdirs(const char *muldir) {
                 char buf[4096] = {0};
                 strncpy(buf, muldir, 2096);
                 for (auto &ch : buf) {
@@ -48,7 +62,7 @@ namespace utils {
         };
 
     }  // log
-    
+
 }  // utils
 
 // 这段代码的目的实际上是为了去掉编译告警 [-Wformat-extra-args]
@@ -61,15 +75,15 @@ inline void logger_fmt(char *out, size_t size, const char *fmt, ...)
 }
 
 // 支持传统 %s 控制符输出，还支持spdlog {} 条件控制输出，无缝替换
-#define LOGGER_CALL(logger, fmt, ...)                               \
-    {                                                               \
-        if (strchr(fmt, '%')) {                                     \
-            char temp[2048] = {0};                                  \
-            logger_fmt (temp, sizeof(temp), fmt, ##__VA_ARGS__);    \
-            logger (temp);                                          \
-        } else {                                                    \
-            logger (fmt, ##__VA_ARGS__);                            \
-        }                                                           \
+#define LOGGER_CALL(logger, fmt, ...)                             \
+    {                                                             \
+        if (strchr(fmt, '%')) {                                   \
+            char temp[2048] = {0};                                \
+            logger_fmt (temp, sizeof(temp), fmt, ##__VA_ARGS__);  \
+            logger (temp);                                        \
+        } else {                                                  \
+            logger (fmt, ##__VA_ARGS__);                          \
+        }                                                         \
     }
 
 #define LTRACE(fmt, ...) LOGGER_CALL(SPDLOG_TRACE, fmt, ##__VA_ARGS__)
